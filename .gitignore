@@ -7,4 +7,17 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
+### Environment files ###
 .env
+.env.dev
+.env.prod
+
+### Docker volumes ###
+data/
+
+### OS files ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+*.log

@@ -1,0 +1,61 @@
+name: CD Kafka (Dev)
+
+on:
+  push:
+    branches: [ "dev" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate .env.dev file
+        run: echo "${{ secrets.ENV_DEV_CONTENT }}" > .env.dev
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_DEV_HOST }}
+          username: ${{ secrets.EC2_DEV_USERNAME }}
+          key: ${{ secrets.EC2_DEV_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_DEV_PORT }}
+          source: "docker-compose.dev.yml,.env.dev"
+          target: "~/kafka/"
+
+      - name: Deploy Kafka
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_DEV_HOST }}
+          username: ${{ secrets.EC2_DEV_USERNAME }}
+          key: ${{ secrets.EC2_DEV_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_DEV_PORT }}
+          script: |
+            cd ~/kafka
+            docker compose -f docker-compose.dev.yml --env-file .env.dev down
+            docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+            docker system prune -f
+
+      - name: Verify Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_DEV_HOST }}
+          username: ${{ secrets.EC2_DEV_USERNAME }}
+          key: ${{ secrets.EC2_DEV_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_DEV_PORT }}
+          script: |
+            echo "Waiting for Kafka to become healthy..."
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' hands-up-kafka 2>/dev/null || echo "not found")
+              echo "Attempt $i/12: Status=$STATUS"
+              if [ "$STATUS" = "healthy" ]; then
+                echo "Kafka is healthy."
+                exit 0
+              fi
+              sleep 10
+            done
+            echo "ERROR: Kafka did not become healthy within 120 seconds."
+            docker logs hands-up-kafka --tail 50
+            exit 1
