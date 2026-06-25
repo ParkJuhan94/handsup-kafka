@@ -32,6 +32,7 @@ services:
       CLUSTER_ID: "${CLUSTER_ID}"
     volumes:
       - kafka-data:/var/lib/kafka/data
+    restart: unless-stopped
     healthcheck:
       test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1
       interval: 15s
@@ -51,6 +52,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   kafka-data:
