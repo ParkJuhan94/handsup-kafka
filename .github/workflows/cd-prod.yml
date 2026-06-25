@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Generate .env.prod file
         run: echo "${{ secrets.ENV_PROD_CONTENT }}" > .env.prod
