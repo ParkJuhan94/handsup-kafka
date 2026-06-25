@@ -49,7 +49,7 @@ services:
       start_period: 45s
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: ghcr.io/kafbat/kafka-ui:latest
     container_name: hands-up-kafka-ui
     ports:
       - "127.0.0.1:8080:8080"

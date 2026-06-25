@@ -11,10 +11,11 @@ HandsUp 프로젝트의 Kafka 브로커 인프라. Apache Kafka KRaft 모드 사
 
 ```bash
 # 1. 환경변수 파일 생성 (최초 1회)
-cp .env.local.example .env.local
+cp .env.dev.example .env.dev
+# KAFKA_ADVERTISED_HOST=localhost 로 설정 (기본값)
 
 # 2. 브로커 + Kafka UI 시작
-docker compose -f docker-compose.local.yml --env-file .env.local up -d
+docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
 
 # 3. Kafka UI 접속
 # http://localhost:8080
@@ -23,17 +24,31 @@ docker compose -f docker-compose.local.yml --env-file .env.local up -d
 # bootstrap-servers: localhost:29092
 
 # 5. 중지
-docker compose -f docker-compose.local.yml --env-file .env.local down
+docker compose -f docker-compose.dev.yml --env-file .env.dev down
 
 # 데이터까지 삭제하려면
-docker compose -f docker-compose.local.yml --env-file .env.local down -v
+docker compose -f docker-compose.dev.yml --env-file .env.dev down -v
 ```
+
+## Dev Server
+
+`dev` 브랜치에 push 시 GitHub Actions CD 파이프라인이 자동으로 dev EC2에 배포.
+
+### GitHub Secrets 설정 필요 (Dev)
+
+| Secret | 설명 |
+|--------|------|
+| `ENV_DEV_CONTENT` | .env.dev 파일 내용 (`KAFKA_ADVERTISED_HOST`에 EC2 IP 설정) |
+| `EC2_DEV_HOST` | dev EC2 퍼블릭 IP |
+| `EC2_DEV_USERNAME` | dev EC2 SSH 사용자 |
+| `EC2_DEV_SSH_PRIVATE_KEY` | dev EC2 SSH 키 |
+| `EC2_DEV_PORT` | dev EC2 SSH 포트 |
 
 ## Production
 
-main 브랜치에 push 시 GitHub Actions CD 파이프라인이 자동으로 EC2에 배포.
+`main` 브랜치에 push 시 GitHub Actions CD 파이프라인이 자동으로 prod EC2에 배포.
 
-### GitHub Secrets 설정 필요
+### GitHub Secrets 설정 필요 (Prod)
 
 | Secret | 설명 |
 |--------|------|
@@ -58,5 +73,5 @@ ssh -L 8080:localhost:8080 -i <키파일> ubuntu@<EC2_IP> -p <SSH포트>
 ## Architecture
 
 - **Image**: `apache/kafka` (KRaft 모드)
-- **Local**: CONTROLLER + HOST(9092) + DOCKER(9093) 리스너, kafka-ui 포함
-- **Production**: CONTROLLER + INTERNAL(9092) + EXTERNAL(9094) 리스너, 메모리 제한
+- **Dev**: CONTROLLER + INTERNAL(9092) + EXTERNAL(9094) 리스너, kafka-ui 공개 접근
+- **Production**: CONTROLLER + INTERNAL(9092) + EXTERNAL(9094) 리스너, 메모리 제한, kafka-ui SSH 터널 전용

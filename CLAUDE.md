@@ -9,14 +9,14 @@ Infrastructure-only repository for the HandsUp project's Kafka. No application c
 ## Commands
 
 ```bash
-# Local: start broker + kafka-ui
-docker compose -f docker-compose.local.yml --env-file .env.local up -d
+# Dev (local/dev EC2): start broker + kafka-ui
+docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
 
-# Local: stop
-docker compose -f docker-compose.local.yml --env-file .env.local down
+# Dev: stop
+docker compose -f docker-compose.dev.yml --env-file .env.dev down
 
-# Local: stop and delete all data
-docker compose -f docker-compose.local.yml --env-file .env.local down -v
+# Dev: stop and delete all data
+docker compose -f docker-compose.dev.yml --env-file .env.dev down -v
 
 # Check broker health
 docker inspect --format='{{.State.Health.Status}}' hands-up-kafka
@@ -25,20 +25,23 @@ docker inspect --format='{{.State.Health.Status}}' hands-up-kafka
 ## Architecture
 
 - **Image**: `apache/kafka` in KRaft mode (no Zookeeper)
-- **Environment separation**: `docker-compose.local.yml` (dev) / `docker-compose.prod.yml` (prod), each with its own `.env.*` file
-- **Local listeners**: CONTROLLER(29093), HOST(9092 → host:29092), DOCKER(9093 for kafka-ui)
-- **Prod listeners**: CONTROLLER(29093), INTERNAL(9092), EXTERNAL(9094 → host:29092)
-- **Local extras**: `provectuslabs/kafka-ui` at http://localhost:8080
+- **Environment separation**: `docker-compose.dev.yml` (dev) / `docker-compose.prod.yml` (prod), each with its own `.env.*` file
+- **Listeners (both envs)**: CONTROLLER(29093), INTERNAL(9092), EXTERNAL(9094 → host:KAFKA_EXTERNAL_PORT)
+- **Dev extras**: `provectuslabs/kafka-ui` at `0.0.0.0:${KAFKA_UI_PORT}` (public access)
 - **Prod extras**: `provectuslabs/kafka-ui` at 127.0.0.1:8080 (SSH tunnel only), memory limits (768M container / 512M heap), `restart: unless-stopped`, health-check verification in CD
 
 ## Deployment
 
-Push to `main` triggers `.github/workflows/cd.yml` which SCPs `docker-compose.prod.yml` + `.env.prod` to EC2 and runs `docker compose up -d`. The pipeline includes a health-check verification step (polls for up to 120s).
+- `dev` branch push → `.github/workflows/cd-dev.yml` → dev EC2
+- `main` branch push → `.github/workflows/cd-prod.yml` → prod EC2
 
-GitHub Secret `ENV_PROD_CONTENT` contains the full `.env.prod` contents. The `CLUSTER_ID` in prod must never change after first deployment — it is baked into KRaft metadata.
+Both pipelines SCP the compose file + env file to EC2 and run `docker compose up -d`. Each includes a health-check verification step (polls for up to 120s).
+
+GitHub Secret `ENV_DEV_CONTENT` / `ENV_PROD_CONTENT` contains the full env file contents. The `CLUSTER_ID` per environment must never change after first deployment — it is baked into KRaft metadata.
 
 ## Key Constraints
 
 - `CLUSTER_ID` is fixed per environment. Changing it makes existing volume data inaccessible.
 - `KAFKA_LOG_DIRS` is explicitly set to `/var/lib/kafka/data` (not the default `/tmp/kraft-combined-logs`) to survive container restarts with volume mounts.
-- Environment files (`.env`, `.env.local`, `.env.prod`) are gitignored. Only `.example` templates are committed.
+- Environment files (`.env.dev`, `.env.prod`) are gitignored. Only `.example` templates are committed.
+- `KAFKA_ADVERTISED_HOST`: set to `localhost` for local dev, EC2 IP for dev/prod servers.

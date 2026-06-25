@@ -3,7 +3,7 @@ services:
     image: apache/kafka:latest
     container_name: hands-up-kafka
     ports:
-      - "${KAFKA_HOST_PORT}:9092"
+      - "${KAFKA_EXTERNAL_PORT}:9094"
     environment:
       # KRaft 모드 설정
       KAFKA_NODE_ID: 1
@@ -12,10 +12,10 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@hands-up-kafka:29093
 
       # 리스너 설정
-      KAFKA_LISTENERS: CONTROLLER://:29093,HOST://:9092,DOCKER://:9093
-      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:${KAFKA_HOST_PORT},DOCKER://hands-up-kafka:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,HOST:PLAINTEXT,DOCKER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      KAFKA_LISTENERS: CONTROLLER://:29093,INTERNAL://:9092,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://hands-up-kafka:9092,EXTERNAL://${KAFKA_ADVERTISED_HOST}:${KAFKA_EXTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
 
       # 단일 노드 설정
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -29,7 +29,7 @@ services:
       KAFKA_LOG_DIRS: /var/lib/kafka/data
 
       # 클러스터 ID
-      CLUSTER_ID: "handsup-kafka-local-dev-01"
+      CLUSTER_ID: "${CLUSTER_ID}"
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
@@ -40,14 +40,14 @@ services:
       start_period: 30s
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: ghcr.io/kafbat/kafka-ui:latest
     container_name: hands-up-kafka-ui
     ports:
       - "${KAFKA_UI_PORT}:8080"
     environment:
       DYNAMIC_CONFIG_ENABLED: "true"
-      KAFKA_CLUSTERS_0_NAME: hands-up-local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: hands-up-kafka:9093
+      KAFKA_CLUSTERS_0_NAME: hands-up-dev
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: hands-up-kafka:9092
     depends_on:
       kafka:
         condition: service_healthy

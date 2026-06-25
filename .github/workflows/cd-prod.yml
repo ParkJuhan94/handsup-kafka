@@ -1,0 +1,61 @@
+name: CD Kafka (Prod)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate .env.prod file
+        run: echo "${{ secrets.ENV_PROD_CONTENT }}" > .env.prod
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          source: "docker-compose.prod.yml,.env.prod"
+          target: "~/kafka/"
+
+      - name: Deploy Kafka
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          script: |
+            cd ~/kafka
+            docker compose -f docker-compose.prod.yml --env-file .env.prod down
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            docker system prune -f
+
+      - name: Verify Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          script: |
+            echo "Waiting for Kafka to become healthy..."
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' hands-up-kafka 2>/dev/null || echo "not found")
+              echo "Attempt $i/12: Status=$STATUS"
+              if [ "$STATUS" = "healthy" ]; then
+                echo "Kafka is healthy."
+                exit 0
+              fi
+              sleep 10
+            done
+            echo "ERROR: Kafka did not become healthy within 120 seconds."
+            docker logs hands-up-kafka --tail 50
+            exit 1
