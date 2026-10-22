@@ -1,5 +1,11 @@
 # HandsUp Kafka
 
+> **⚠️ 이 저장소는 더 이상 유지하지 않습니다 (아카이브).**
+> 운영 Kafka를 별도 EC2에서 돌리던 구조를 단일 EC2로 통합하면서, 브로커를 Redpanda로 교체해
+> [handsup-backend](https://github.com/ParkJuhan94/handsup-backend)의 `docker-compose.prod.yml`로 옮겼습니다.
+> 통합 이유: EC2 2대 비용, advertised host 관리, 보안그룹 규칙, 인증 없는 PLAINTEXT 외부 노출.
+> 로컬 개발용 브로커도 `handsup-backend/docker-compose.yml`의 Redpanda를 사용합니다.
+
 HandsUp 프로젝트의 Kafka 브로커 인프라. Apache Kafka KRaft 모드 사용 (Zookeeper 불필요).
 
 ## Prerequisites
