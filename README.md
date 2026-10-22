@@ -18,7 +18,7 @@ cp .env.dev.example .env.dev
 docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
 
 # 3. Kafka UI 접속
-# http://localhost:8080
+# http://localhost:8091
 
 # 4. 애플리케이션 연결
 # bootstrap-servers: localhost:29092
